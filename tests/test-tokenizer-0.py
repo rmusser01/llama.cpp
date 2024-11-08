@@ -100,14 +100,14 @@ def run_tests(tokenizer, tests: Dict[str, List[int]], thread_id: int) -> bool:
     return success
 
 
-def process_text_file(tokenizer, fname: str) -> Tuple[List[int], float]:
-    """Process a single text file and return tokens and processing time."""
+def process_text_file(tokenizer, fname: str) -> Tuple[List[int], float, List[str]]:
+    """Process a single text file and return tokens, processing time, and lines."""
     if not os.path.isfile(fname):
         print(f"{__name__} : error: could not open file '{fname}'")
-        return [], 0.0
+        return [], 0.0, []
 
     try:
-        print(f"{__name__} : tokenizing: '{fname}'")
+        print(f"tokenizing file: {fname}")
         with open(fname, 'r', encoding='utf-8') as f:
             lines = f.readlines()
             text = ''.join(lines)
@@ -118,70 +118,39 @@ def process_text_file(tokenizer, fname: str) -> Tuple[List[int], float]:
         tokens = tokenizer.encode(text, add_special_tokens=False)
         processing_time = (time.time() - start_time) * 1000
 
-        return tokens, processing_time
+        return tokens, processing_time, lines
 
     except Exception as e:
         print(f"{__name__} : error: {e}")
-        return [], 0.0
+        return [], 0.0, []
 
 
 def main():
-    if len(sys.argv) < 2:
-        print(f"Usage: {sys.argv[0]} vocab-file [text-file]")
-        return 1
-
-    vocab_file = sys.argv[1]
-    text_file = sys.argv[2] if len(sys.argv) > 2 else None
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dir_tokenizer", help="directory containing 'tokenizer.model' file")
+    parser.add_argument("--fname-tok", help="path to a text file to tokenize", required=True)
+    args = parser.parse_args()
 
     setup_console()
 
-    print(f"{__name__} : reading vocab from: '{vocab_file}'")
-
     try:
-        tokenizer = AutoTokenizer.from_pretrained(vocab_file)
+        tokenizer = AutoTokenizer.from_pretrained(args.dir_tokenizer)
+        
+        # Process file mode
+        tokens, processing_time, lines = process_text_file(tokenizer, args.fname_tok)
+        if not tokens:
+            return 1
 
-        if text_file:
-            # Process single file mode
-            tokens, processing_time = process_text_file(tokenizer, text_file)
-            if not tokens:
-                return 1
+        fname_out = args.fname_tok + '.tok'
+        with open(fname_out, 'w', encoding='utf-8') as f:
+            for token in tokens:
+                f.write(f"{token}\n")
 
-            fname_out = text_file + '.tokpy'
-            with open(fname_out, 'w', encoding='utf-8') as f:
-                for token in tokens:
-                    f.write(f"{token}\n")
-
-            print(f"{__name__} : tokenized in {processing_time:.3f} ms (py)")
-            print(f"{__name__} : tokens: {len(tokens)}")
-            print(f"{__name__} : tokens written to '{fname_out}'")
-            return 0
-
-        else:
-            # Test suite mode
-            fname_inp = vocab_file + '.inp'
-            fname_out = vocab_file + '.out'
-
-            tests = read_tests(fname_inp, fname_out)
-            if not tests:
-                print(f"{__name__} : error: no tests found")
-                return 1
-
-            thread_count = len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity') else os.cpu_count() or 1
-            threads = []
-            results = []
-
-            for i in range(thread_count):
-                thread = threading.Thread(
-                    target=lambda i=i: results.append(run_tests(tokenizer, tests, i)))
-                threads.append(thread)
-                thread.start()
-
-            for thread in threads:
-                thread.join()
-
-            success = all(results)
-            print("\nTests", "passed" if success else "failed")
-            return 0 if success else 3
+        print(f"\nmain : tokenized in {processing_time:.3f} ms (py)")
+        print(f"len(res): {len(tokens)}")
+        print(f"len(lines): {len(lines)}")
+        print(f"results written to: {fname_out}")
+        return 0
 
     except Exception as e:
         print(f"{__name__} : error: {e}")
