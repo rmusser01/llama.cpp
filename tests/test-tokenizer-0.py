@@ -135,7 +135,22 @@ def main():
 
     try:
         tokenizer = AutoTokenizer.from_pretrained(args.dir_tokenizer)
-        
+        # LLaMA v3 for some reason strips the space for these tokens (and others)
+        # if x == 662:
+        #     f.write(str(x) + ' \' ' + tokenizer.decode(x) + '\'\n')
+        # elif x == 1174:
+        #     f.write(str(x) + ' \' ' + tokenizer.decode(x) + '\'\n')
+        # elif x == 2564:
+        #     f.write(str(x) + ' \' ' + tokenizer.decode(x) + '\'\n')
+        # elif x == 758:
+        #     f.write(str(x) + ' \' ' + tokenizer.decode(x) + '\'\n')
+        # elif x == 949:
+        #     f.write(str(x) + ' \' ' + tokenizer.decode(x) + '\'\n')
+        # elif x == 5354:
+        #     f.write(str(x) + ' \' ' + tokenizer.decode(x) + '\'\n')
+        # else:
+        #     f.write(str(x) + ' \'' + tokenizer.decode(x) + '\'\n')
+        # f.write(str(x) + ' \'' + tokenizer.decode(x).strip() + '\'\n')
         # Process file mode
         tokens, processing_time, lines = process_text_file(tokenizer, args.fname_tok)
         if not tokens:
